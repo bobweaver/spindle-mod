@@ -1,0 +1,198 @@
+#!/bin/sh
+# Part of spindle http://asbradbury.org/projects/spindle
+#
+# See LICENSE file for copyright and license details
+
+set -ex
+
+. ./common
+
+CURIMG=stage4-lxde.$IMGFORMAT
+
+upgrade_jessie() {
+  # we may want to break out DEBIAN_FRONTEND=noninteractive
+  ssh_in_to_qemu chroot /mnt sh -l -ex - <<EOF
+sed -i "s|wheezy|jessie|g" /etc/apt/sources.list
+apt-get update
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xorg fluxbox fbsetbg fbrun
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xdg-utils
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y git-core rpi-update
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y dist-upgrade
+EOF
+}
+
+
+install_wayland() {
+  onvm_chroot sh -l -ex - <<\EOF
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install weston
+}
+
+
+
+configure_primark() {
+  onvm_chroot sh -l -e <<\EOF
+## get the background from are server packages.  
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C 
+cd /tmp
+
+wget http://primark.netgear.com/debian/archive/jessie/primark-background-0.1.armhf.deb
+wget http://primark.netgear.com/debian/archive/jessie/primark-icons-0.1.armhf.deb
+
+# change background
+
+update-alternatives --install /usr/share/images/desktop-base/desktop-background \
+  desktop-background /usr/share/background/primark/background.jpg 100
+PCMANFMCFG=/etc/xdg/pcmanfm/LXDE/pcmanfm.conf
+EOF
+}
+
+setup_automounting() {
+  onvm_chroot sh -l -e <<\EOF1
+apt-get install -y udisks
+cat <<EOF2 > /etc/polkit-1/localauthority/50-local.d/55-storage.pkla
+[Storage Permissions]
+Identity=unix-group:plugdev
+Action=org.freedesktop.udisks.filesystem-mount;org.freedesktop.udisks.drive-eject;org.freedesktop.udisks.drive-detach;org.freedesktop.udisks.luks-unlock;org.freedesktop.udisks.inhibit-polling;org.freedesktop.udisks.drive-set-spindown
+ResultAny=yes
+ResultActive=yes
+ResultInactive=no
+EOF2
+EOF1
+}
+
+install_qt4(){
+  onvm_chroot sh -l -e <<\EOF
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y qt4-default qt4-qmlviewer
+EOF
+}
+
+install_qt5() {
+  onvm_chroot sh -l -e <<\EOF
+DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y qt5-default qmlscene libqt5qml5 libqt5quick5 libqt5quickparticles5
+EOF
+}
+
+cd $WORKDIR
+dotask branch_image ../$OUTDIR/stage3.$IMGFORMAT $CURIMG
+dotask run_qemu $CURIMG
+dotask mount_apt_cache
+dotask disable_starting_services
+dotask upgrade_jessie
+dotask install_qt4
+dotask install_qt5
+#dotask install_wayland
+dotask setup_automounting
+dotask save_space_using_hardlink
+dotask allow_starting_services
+dotask update_issue
+dotask fingerprint_debian
+dotask shutdown_qemu
+dotask finish_image
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+##!/bin/sh
+## Part of spindle http://asbradbury.org/projects/spindle
+##
+## See LICENSE file for copyright and license details
+
+#set -ex
+
+#. ./common
+
+#CURIMG=stage4-lxde.$IMGFORMAT
+
+#upgrade_jessie() {
+#  # we may want to break out DEBIAN_FRONTEND=noninteractive
+#  ssh_in_to_qemu chroot /mnt sh -l -ex - <<EOF
+#sed -i "s|wheezy|jessie|g" /etc/apt/sources.list
+#apt-get update
+##DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xserver-xorg-video-fbdev
+##DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xserver-xorg xinit
+##DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xserver-xorg-video-fbturbo
+##DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y alsa-utils
+##DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xorg fluxbox
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y xdg-utils
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y git-core rpi-update
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y dist-upgrade
+#EOF
+#}
+
+
+#install_wayland() {
+#  onvm_chroot sh -l -ex - <<\EOF
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install weston
+#}
+
+
+
+#configure_primark() {
+#  onvm_chroot sh -l -e <<\EOF
+## configure openbox so it doesn't ask apps to redraw while resizing
+#sed /etc/xdg/openbox/LXDE/rc.xml -i -e \
+#  "s|<drawContents>yes</drawContents>|<drawContents>no</drawContents>|"
+#  ## get the background from are server packages.  
+## change background
+#update-alternatives --install /usr/share/images/desktop-base/desktop-background \
+#  desktop-background /usr/share/raspberrypi-artwork/raspberry-pi-logo.png 100
+#PCMANFMCFG=/etc/xdg/pcmanfm/LXDE/pcmanfm.conf
+#EOF
+#}
+
+#setup_automounting() {
+#  onvm_chroot sh -l -e <<\EOF1
+#apt-get install -y udisks
+#cat <<EOF2 > /etc/polkit-1/localauthority/50-local.d/55-storage.pkla
+#[Storage Permissions]
+#Identity=unix-group:plugdev
+#Action=org.freedesktop.udisks.filesystem-mount;org.freedesktop.udisks.drive-eject;org.freedesktop.udisks.drive-detach;org.freedesktop.udisks.luks-unlock;org.freedesktop.udisks.inhibit-polling;org.freedesktop.udisks.drive-set-spindown
+#ResultAny=yes
+#ResultActive=yes
+#ResultInactive=no
+#EOF2
+#EOF1
+#}
+
+#install_qt4(){
+#  onvm_chroot sh -l -e <<\EOF
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y qt4-default qt4-qmlviewer
+#EOF
+#}
+
+#install_qt5() {
+#  onvm_chroot sh -l -e <<\EOF
+#DEBIAN_FRONTEND=noninteractive DEBCONF_NONINTERACTIVE_SEEN=true LC_ALL=C LANGUAGE=C LANG=C aptitude install -y qt5-default qmlscene
+#EOF
+#}
+
+#cd $WORKDIR
+#dotask branch_image ../$OUTDIR/stage3.$IMGFORMAT $CURIMG
+#dotask run_qemu $CURIMG
+#dotask mount_apt_cache
+#dotask disable_starting_services
+#dotask upgrade_jessie
+#dotask install_qt4
+#dotask install_qt5
+#dotask install_wayland
+#dotask setup_automounting
+#dotask save_space_using_hardlink
+#dotask allow_starting_services
+#dotask update_issue
+#dotask fingerprint_debian
+#dotask shutdown_qemu
+#dotask finish_image

@@ -1,0 +1,18 @@
+#!/usr/bin/env bash 
+
+## pthis is a simple script that is used to run all the other scripts to set up and build a rasperian pi IMG
+#Joseph 
+
+echo "Where is the spindle dir located ?  "
+read -e spindleDir
+
+cd $spindleDir;
+sudo ./setup_spindle_environment  my_jessie_pi \
+sudo modprobe nbd max_part=16 \
+schroot -c spindle \
+sudo ./downgrade_qemu \
+./jessie-stage0 \
+./jessie-stage1 \
+./jessie-stage2 \
+./jessie-stage3 \
+./jessie-stage4-lxde 
